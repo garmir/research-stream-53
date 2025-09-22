@@ -1,0 +1,30 @@
+---
+name: Screenshot Guided Test
+on:
+  workflow_dispatch:
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  screenshot-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Test Based on Screenshot Analysis
+        run: |
+          cd ~ && nix-shell -p nodejs expect --run 'expect -c "
+            set timeout 120
+            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"Quick test: respond with current timestamp\"
+            expect { -re {.*style.*} { send \"1\r\" } }
+            expect { -re {.*bypass.*} { send \"2\r\" } }
+            expect { -re {.*timestamp.*|.*test.*|.*Write.*} { exit 0 } timeout { exit 1 } }
+          "'
+      - name: Create Test Result
+        run: nix-shell -p coreutils --run 'echo "Screenshot test completed at $(date)" > screenshot-test.txt'
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-test-results
+          path: screenshot-test.txt
