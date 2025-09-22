@@ -1,0 +1,51 @@
+---
+name: Autonomous Claude Research Publisher
+on:
+  workflow_dispatch:
+    inputs:
+      research_topic:
+        description: 'Research topic for autonomous publication'
+        required: true
+        default: 'network security methodology optimization'
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  autonomous-research-publisher:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Execute Autonomous Claude Research and Publishing
+        run: |
+          cd ~ && nix-shell -p nodejs expect --run 'expect -c "
+            set timeout 900
+            log_file -noappend autonomous-research.log
+            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"You are an autonomous research agent. Task: 1) Clone https://github.com/garmir/claude-methodology.git to ~/.claude 2) Research ${{ github.event.inputs.research_topic }} using .claude methodology patterns 3) Use nix-shell with gh CLI to create a new repository for your findings 4) Use nix-shell -p github-cli --run 'gh repo create research-findings-\$(date +%s) --public --description \"Autonomous research findings\"' 5) Export your research as markdown files to the new repository using gh CLI commands. You have access to GitHub authentication in this environment.\"
+            expect { -re {.*Choose.*style.*} { send \"1\r\" } }
+            expect { -re {.*bypass permissions.*} { send \"2\r\" } }
+            expect {
+              -re {.*repository.*created.*|.*research.*exported.*|.*findings.*published.*} {
+                sleep 60
+              }
+              eof {
+                exit 0
+              }
+              timeout {
+                exit 1
+              }
+            }
+          "'
+      - name: Copy Research Logs
+        run: |
+          nix-shell -p coreutils --run 'cp ~/autonomous-research.log . 2>/dev/null || echo "No log found" > error.txt'
+          nix-shell -p coreutils --run 'ls -la ~ > home-files.txt'
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: autonomous-research-results
+          path: |
+            autonomous-research.log
+            error.txt
+            home-files.txt
