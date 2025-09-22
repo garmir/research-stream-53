@@ -1,0 +1,34 @@
+---
+name: Screenshot Methodology Fix
+on:
+  workflow_dispatch:
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  screenshot-guided-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Clone Claude Methodology
+        run: nix-shell -p git --run 'cd ~ && git clone https://github.com/garmir/claude-methodology.git .claude'
+      - name: Execute Screenshot-Guided Research
+        run: |
+          cd ~ && nix-shell -p nodejs expect --run 'expect -c "
+            set timeout 300
+            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"Analyze GitHub workflow patterns from .claude repository and optimize for screenshot-guided fixes\"
+            expect { -re {.*style.*} { send \"1\r\" } }
+            expect { -re {.*bypass.*} { send \"2\r\" } }
+            expect { -re {.*analyze.*|.*optimize.*|.*Write.*} { exit 0 } timeout { exit 1 } }
+          "' > screenshot-research.txt 2>&1
+      - name: Validate Claude Directory
+        run: nix-shell -p coreutils --run 'ls ~/.claude/*.md > claude-files.txt'
+      - name: Upload Screenshot Methodology Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-methodology-results
+          path: |
+            screenshot-research.txt
+            claude-files.txt
