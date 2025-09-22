@@ -1,0 +1,36 @@
+---
+name: Optimization Test with Content Capture
+on:
+  workflow_dispatch:
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  optimization-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Clone Methodology
+        run: nix-shell -p git --run 'cd ~ && git clone https://github.com/garmir/claude-methodology.git .claude'
+      - name: Execute Optimized Research
+        run: |
+          cd ~ && nix-shell -p nodejs expect --run 'expect -c "
+            set timeout 300
+            log_file research-log.txt
+            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"Analyze .claude methodology: find 3 specific workflow optimization improvements. Output concrete recommendations.\"
+            expect { -re {.*style.*} { send \"1\r\" } }
+            expect { -re {.*bypass.*} { send \"2\r\" } }
+            expect { -re {.*optimization.*|.*improvements.*|.*Write.*} {
+              sleep 20
+              exit 0
+            } timeout { exit 1 } }
+          " && cp research-log.txt optimization-results.txt'
+      - name: Upload Research Content
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimization-research-content
+          path: |
+            optimization-results.txt
+            research-log.txt
