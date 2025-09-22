@@ -1,0 +1,55 @@
+---
+name: Claude Methodology Optimization Research
+on:
+  workflow_dispatch:
+    inputs:
+      focus_area:
+        description: 'Research focus area'
+        required: true
+        default: 'workflow efficiency patterns'
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  methodology-optimization-research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Clone Complete Claude Methodology
+        run: nix-shell -p git --run 'cd ~ && git clone https://github.com/garmir/claude-methodology.git .claude'
+      - name: Research Methodology Optimizations
+        run: |
+          cd ~ && nix-shell -p nodejs expect --run 'expect -c "
+            set timeout 300
+            log_file -noappend methodology-research.log
+            spawn npx @anthropic-ai/claude-code --dangerously-skip-permissions \"Analyze the complete .claude methodology repository at ~/.claude and research optimizations for ${{ github.event.inputs.focus_area }}. Examine all MODE_, MCP_, and RULES files. Identify: 1) Redundant patterns, 2) Missing optimizations, 3) Workflow improvements, 4) Performance enhancements. Output specific recommendations.\"
+            expect { -re {.*style.*} { send \"1\r\" } }
+            expect { -re {.*bypass.*} { send \"2\r\" } }
+            expect {
+              -re {.*optimization.*|.*recommendation.*|.*improvement.*|.*Write.*} {
+                sleep 30
+              }
+              eof {
+                exit 0
+              }
+              timeout {
+                exit 1
+              }
+            }
+          "'
+      - name: Copy Research Output
+        run: |
+          nix-shell -p coreutils --run 'cp ~/methodology-research.log . 2>/dev/null || echo "No research log found" > error.txt'
+          nix-shell -p coreutils --run 'ls -la ~/.claude/ > claude-files-verified.txt'
+          nix-shell -p coreutils --run 'echo "Optimization research completed at $(date)" > completion-status.txt'
+      - name: Upload Optimization Research
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-methodology-optimizations
+          path: |
+            methodology-research.log
+            error.txt
+            claude-files-verified.txt
+            completion-status.txt
